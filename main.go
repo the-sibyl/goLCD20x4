@@ -21,13 +21,29 @@ func main() {
 	defer lcd.Close()
 
 	lcd.FunctionSet(1, 1, 1)
-	lcd.DisplayOnOffControl(1, 1, 1)
-	lcd.EntryModeSet(1, 1)
+	lcd.DisplayOnOffControl(1, 0, 0)
+	lcd.EntryModeSet(0, 0)
 
-	lcd.ReturnHome()
+	for {
+		lcd.ReturnHome()
 
-	for k := 0; k < 80; k++ {
-		lcd.WriteCharacter((byte) (k + 0x30))
+		for k := 0; k < 80; k++ {
+			lcd.WriteCharacter((byte) (k + 0x30))
+		}
+
+		time.Sleep(time.Second)
+
+		lcd.ClearDisplay()
+		lcd.SetDDRAMAddress(0)
+		lcd.WriteCharacter(0x30)
+		lcd.SetDDRAMAddress(40)
+		lcd.WriteCharacter(0x31)
+		lcd.SetDDRAMAddress(20)
+		lcd.WriteCharacter(0x32)
+		lcd.SetDDRAMAddress(60)
+		lcd.WriteCharacter(0x33)
+
+		time.Sleep(time.Second)
 	}
 }
 
@@ -184,7 +200,43 @@ func (lcd *LCD20x4) DisplayOnOffControl(displayOnOff int, cursorOnOff int, curso
 }
 
 func (lcd *LCD20x4) CursorOrDisplayShift(displayShiftOrCursorMove int, rightOrLeft int) {
+	lcd.PinRS.SetLow()
+	lcd.PinRW.SetLow()
 
+	time.Sleep(time.Microsecond)
+
+	lcd.PinE.SetHigh()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.PinDB7.SetLow()
+	lcd.PinDB6.SetLow()
+	lcd.PinDB5.SetLow()
+	lcd.PinDB4.SetHigh()
+
+	// Display shift if true. Cursor move if false.
+	if displayShiftOrCursorMove > 0 {
+		lcd.PinDB3.SetHigh()
+	} else {
+		lcd.PinDB3.SetLow()
+	}
+
+	// Shift to the right if true. Shift to the left if false.
+	if rightOrLeft > 0 {
+		lcd.PinDB2.SetHigh()
+	} else {
+		lcd.PinDB2.SetLow()
+	}
+
+	// Note: DB1 and DB0 are "don't care" values
+
+	// Write operations appear to need a >= 1000ns settling time
+	time.Sleep(time.Microsecond)
+
+	// Latch data into the device
+	lcd.PinE.SetLow()
+
+	time.Sleep(time.Millisecond)
 }
 
 func (lcd *LCD20x4) FunctionSet(dataLength int, numDisplayLines int, characterFont int) {
@@ -231,6 +283,78 @@ func (lcd *LCD20x4) FunctionSet(dataLength int, numDisplayLines int, characterFo
 	lcd.PinE.SetLow()
 
 	time.Sleep(time.Millisecond)
+}
+
+func (lcd *LCD20x4) SetDDRAMAddress(address byte) {
+	lcd.PinRS.SetLow()
+	lcd.PinRW.SetLow()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.PinE.SetHigh()
+
+	time.Sleep(time.Microsecond)
+
+
+	shiftedValue := address
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB0.SetHigh()
+	} else {
+		lcd.PinDB0.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB1.SetHigh()
+	} else {
+		lcd.PinDB1.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB2.SetHigh()
+	} else {
+		lcd.PinDB2.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB3.SetHigh()
+	} else {
+		lcd.PinDB3.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB4.SetHigh()
+	} else {
+		lcd.PinDB4.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB5.SetHigh()
+	} else {
+		lcd.PinDB5.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB6.SetHigh()
+	} else {
+		lcd.PinDB6.SetLow()
+	}
+
+	lcd.PinDB7.SetHigh()
+
+	// Write operations appear to need a >= 1000ns settling time
+	time.Sleep(time.Microsecond)
+
+	// Latch data into the device
+	lcd.PinE.SetLow()
+
+	time.Sleep(time.Microsecond)
 }
 
 // Helper function to write the 8-bit data bus
