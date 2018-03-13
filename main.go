@@ -7,6 +7,9 @@ import (
 	"github.com/the-sibyl/sysfsGPIO"
 )
 
+// Note: I am copy-pasting a lot of code in case I need to change timing for a particular instruction. It looks as 
+// though most of these instructions can be collapsed into functions that call a generalized register write function.
+
 func main() {
 	fmt.Println("Running")
 	//	font := make(map[rune]int)
@@ -19,11 +22,19 @@ func main() {
 
 	lcd.FunctionSet(1, 1, 1)
 	lcd.DisplayOnOffControl(1, 1, 1)
+	lcd.EntryModeSet(1, 1)
 
-	lcd.WriteCharacter()
+	lcd.ReturnHome()
+
+	for k := 0; k < 80; k++ {
+		lcd.WriteCharacter((byte) (k + 0x30))
+	}
 }
 
-func (lcd *LCD20x4) WriteCharacter() {
+
+
+// Write a raw character supported in the CGROM
+func (lcd *LCD20x4) WriteCharacter(rawCharacter byte) {
 	lcd.PinRS.SetHigh()
 	lcd.PinRW.SetLow()
 
@@ -33,18 +44,96 @@ func (lcd *LCD20x4) WriteCharacter() {
 
 	time.Sleep(time.Microsecond)
 
-	lcd.PinDB7.SetLow()
-	lcd.PinDB6.SetHigh()
-	lcd.PinDB5.SetLow()
-	lcd.PinDB4.SetLow()
-	lcd.PinDB3.SetHigh()
-	lcd.PinDB2.SetLow()
-	lcd.PinDB1.SetLow()
-	lcd.PinDB0.SetLow()
+	lcd.writeDBBus(rawCharacter)
 
 	time.Sleep(time.Microsecond)
 
 	lcd.PinE.SetLow()
+
+	time.Sleep(time.Microsecond)
+}
+
+func (lcd *LCD20x4) ClearDisplay() {
+	lcd.PinRS.SetLow()
+	lcd.PinRW.SetLow()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.PinE.SetHigh()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.writeDBBus(1)
+
+	// Write operations appear to need a >= 1000ns settling time
+	time.Sleep(time.Microsecond)
+
+	// Latch data into the device
+	lcd.PinE.SetLow()
+
+	time.Sleep(time.Millisecond)
+}
+
+func (lcd *LCD20x4) ReturnHome() {
+	lcd.PinRS.SetLow()
+	lcd.PinRW.SetLow()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.PinE.SetHigh()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.writeDBBus(0)
+
+	// Write operations appear to need a >= 1000ns settling time
+	time.Sleep(time.Microsecond)
+
+	// Latch data into the device
+	lcd.PinE.SetLow()
+
+	time.Sleep(time.Millisecond)
+}
+
+
+func (lcd *LCD20x4) EntryModeSet(incrementOrDecrement int, shiftEntireDisplay int) {
+	lcd.PinRS.SetLow()
+	lcd.PinRW.SetLow()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.PinE.SetHigh()
+
+	time.Sleep(time.Microsecond)
+
+	lcd.PinDB7.SetLow()
+	lcd.PinDB6.SetLow()
+	lcd.PinDB5.SetLow()
+	lcd.PinDB4.SetLow()
+	lcd.PinDB3.SetLow()
+	lcd.PinDB2.SetLow()
+
+	// Cursor moves to the right if set true or left if set false
+	if incrementOrDecrement > 0 {
+		lcd.PinDB1.SetHigh()
+	} else {
+		lcd.PinDB2.SetLow()
+	}
+
+	// Shift the entire display to the right if set true or left if set false
+	if shiftEntireDisplay > 0 {
+		lcd.PinDB0.SetHigh()
+	} else {
+		lcd.PinDB0.SetLow()
+	}
+
+	// Write operations appear to need a >= 1000ns settling time
+	time.Sleep(time.Microsecond)
+
+	// Latch data into the device
+	lcd.PinE.SetLow()
+
+	time.Sleep(time.Millisecond)
 }
 
 func (lcd *LCD20x4) DisplayOnOffControl(displayOnOff int, cursorOnOff int, cursorBlinking int) {
@@ -90,6 +179,8 @@ func (lcd *LCD20x4) DisplayOnOffControl(displayOnOff int, cursorOnOff int, curso
 
 	// Latch data into the device
 	lcd.PinE.SetLow()
+
+	time.Sleep(time.Millisecond)
 }
 
 func (lcd *LCD20x4) CursorOrDisplayShift(displayShiftOrCursorMove int, rightOrLeft int) {
@@ -139,8 +230,70 @@ func (lcd *LCD20x4) FunctionSet(dataLength int, numDisplayLines int, characterFo
 	// Latch data into the device
 	lcd.PinE.SetLow()
 
+	time.Sleep(time.Millisecond)
 }
 
+// Helper function to write the 8-bit data bus
+func (lcd *LCD20x4) writeDBBus(value byte) {
+	shiftedValue := value
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB0.SetHigh()
+	} else {
+		lcd.PinDB0.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB1.SetHigh()
+	} else {
+		lcd.PinDB1.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB2.SetHigh()
+	} else {
+		lcd.PinDB2.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB3.SetHigh()
+	} else {
+		lcd.PinDB3.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB4.SetHigh()
+	} else {
+		lcd.PinDB4.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB5.SetHigh()
+	} else {
+		lcd.PinDB5.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB6.SetHigh()
+	} else {
+		lcd.PinDB6.SetLow()
+	}
+
+	shiftedValue = shiftedValue >> 1
+
+	if shiftedValue & 1 != 0 {
+		lcd.PinDB7.SetHigh()
+	} else {
+		lcd.PinDB7.SetLow()
+	}
+	shiftedValue = shiftedValue >> 1
+}
 type LCD20x4 struct {
 	PinRS  *sysfsGPIO.IOPin
 	PinRW  *sysfsGPIO.IOPin
