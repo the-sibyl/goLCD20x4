@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -20,10 +21,24 @@ func main() {
 	lcd := Open(2, 3, 4, 17, 27, 22, 10, 9, 11, 0, 5)
 	defer lcd.Close()
 
-	lcd.FunctionSet(1, 1, 1)
+	lcd.FunctionSet(1, 1, 0)
 	lcd.DisplayOnOffControl(1, 0, 0)
-	lcd.EntryModeSet(0, 0)
+	lcd.EntryModeSet(1, 0)
 
+	lcd.ClearDisplay()
+
+	time.Sleep(time.Second)
+	lcd.WriteLine("This is the first line.", 1)
+	time.Sleep(time.Second)
+	lcd.WriteLine("This is the second line.", 2)
+	time.Sleep(time.Second)
+	lcd.WriteLine("This is the third line.", 3)
+	time.Sleep(time.Second)
+	lcd.WriteLine("This is the fourth line.", 4)
+	time.Sleep(time.Second)
+
+
+/*
 	for {
 		lcd.ReturnHome()
 
@@ -45,6 +60,8 @@ func main() {
 
 		time.Sleep(time.Second)
 	}
+*/
+
 }
 
 
@@ -67,6 +84,44 @@ func (lcd *LCD20x4) WriteCharacter(rawCharacter byte) {
 	lcd.PinE.SetLow()
 
 	time.Sleep(time.Microsecond)
+}
+
+// Write a line of text to the display
+func (lcd *LCD20x4) WriteLine(text string, lineNum int) error {
+	// The lines on the 2004 are wrapped. from the "SHENZHEN EONE" datasheet, the addresses for the first line are
+	// from 0x0 to 0x27 and for the second line are 0x40 to 0x67.
+	switch(lineNum) {
+		case 1:
+			lcd.SetDDRAMAddress(0)
+			fmt.Println("Line 1")
+		case 2:
+			lcd.SetDDRAMAddress(64)
+			fmt.Println("Line 2")
+		case 3:
+			lcd.SetDDRAMAddress(20)
+			fmt.Println("Line 3")
+		case 4:
+			lcd.SetDDRAMAddress(84)
+			fmt.Println("Line 4")
+		default:
+			return errors.New("Invalid line number specified. Valid line numbers are 1 through 4.")
+	}
+
+	if text == "" {
+		return errors.New("Empty string ignored.")
+	}
+
+	numCharsToWrite := len(text)
+	if numCharsToWrite > 20 {
+		numCharsToWrite = 20
+		fmt.Println("Characters exceeded")
+	}
+
+	for k := 0; k < numCharsToWrite; k++ {
+		lcd.WriteCharacter(byte(text[k]))
+	}
+
+	return nil
 }
 
 func (lcd *LCD20x4) ClearDisplay() {
