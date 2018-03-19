@@ -24,6 +24,6 @@ func main() {
 	lcd.ClearDisplay()
 
 	lcd.WriteLine("   Welcome to the   ", 1)
-	lcd.WriteLine("  TURBOENCABULATOR  ", 2)
+	lcd.WriteLineCentered("TURBOENCABULATOR", 2)
 	lcd.WriteLine(string(0x7F)+"PREV          NEXT"+string(0x7E), 4)
 }
