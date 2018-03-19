@@ -25,6 +25,7 @@ package goLCD20x4
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/the-sibyl/sysfsGPIO"
@@ -160,10 +161,6 @@ func (lcd *LCD20x4) WriteLine(text string, lineNum int) error {
 		return errors.New("Invalid line number specified. Valid line numbers are 1 through 4.")
 	}
 
-	if text == "" {
-		return errors.New("Empty string ignored.")
-	}
-
 	numCharsToWrite := len(text)
 	if numCharsToWrite > 20 {
 		numCharsToWrite = 20
@@ -176,6 +173,33 @@ func (lcd *LCD20x4) WriteLine(text string, lineNum int) error {
 	return nil
 }
 
+func (lcd *LCD20x4) ScrollFromRight(text string, lineNum int, delay time.Duration) error {
+	paddedText := text + strings.Repeat(" ", 20)
+	for k := 0; k <= 20; k++ {
+		curText := strings.Repeat(" ", 20-k) + paddedText
+		err := lcd.WriteLine(curText, lineNum)
+		if err != nil {
+			return err
+		}
+		time.Sleep(delay)
+	}
+
+	return nil
+}
+
+func (lcd *LCD20x4) ScrollFromLeft(text string, lineNum int, delay time.Duration) error {
+	paddedText := strings.Repeat(" ", 20) + text + strings.Repeat(" ", 20)
+	for k := 0; k <= 20; k++ {
+		curText := paddedText[len(paddedText)-20-k : len(paddedText)-k]
+		err := lcd.WriteLine(curText, lineNum)
+		if err != nil {
+			return err
+		}
+		time.Sleep(delay)
+	}
+
+	return nil
+}
 func (lcd *LCD20x4) ClearDisplay() {
 	lcd.PinRS.SetLow()
 	lcd.PinRW.SetLow()
