@@ -173,6 +173,22 @@ func (lcd *LCD20x4) WriteLine(text string, lineNum int) error {
 	return nil
 }
 
+// Center a string for a 20-character line
+func (lcd *LCD20x4) WriteLineCentered(text string, lineNum int) error {
+	var formattedString string
+
+	if len(text) > 19 {
+		formattedString = text[0:21]
+	} else {
+		numEmptyChars := 20 - len(text)
+		leftPadding := strings.Repeat(" ", numEmptyChars / 2)
+		rightPadding := strings.Repeat(" ", numEmptyChars / 2 + numEmptyChars % 2)
+		formattedString = leftPadding + text + rightPadding
+	}
+
+	return lcd.WriteLine(formattedString, lineNum)
+}
+
 func (lcd *LCD20x4) ScrollFromRight(text string, lineNum int, delay time.Duration) error {
 	paddedText := text + strings.Repeat(" ", 20)
 	for k := 0; k <= 20; k++ {
